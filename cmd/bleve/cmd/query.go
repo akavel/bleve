@@ -15,7 +15,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/blevesearch/bleve"
@@ -25,7 +27,7 @@ import (
 
 var limit, skip, repeat int
 var explain, highlight, fields bool
-var qtype, qfield string
+var qtype, qfield, format string
 
 // queryCmd represents the query command
 var queryCmd = &cobra.Command{
@@ -50,7 +52,17 @@ var queryCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("error running query: %v", err)
 			}
-			fmt.Println(res)
+			switch format {
+			case "text":
+				fmt.Println(res)
+			case "json":
+				err = printJSON(res)
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported format flag value: " + format)
+			}
 		}
 		return nil
 	},
@@ -79,6 +91,12 @@ func buildQuery(args []string) query.Query {
 	return q
 }
 
+func printJSON(res *bleve.SearchResult) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(res)
+}
+
 func init() {
 	RootCmd.AddCommand(queryCmd)
 
@@ -90,4 +108,5 @@ func init() {
 	queryCmd.Flags().BoolVar(&fields, "fields", false, "Load stored fields, default false.")
 	queryCmd.Flags().StringVarP(&qtype, "type", "t", "query_string", "Type of query to run, defaults to 'query_string'")
 	queryCmd.Flags().StringVarP(&qfield, "field", "f", "", "Restrict query to field, by default no restriction, not applicable to query_string queries.")
+	queryCmd.Flags().StringVarP(&format, "format", "o", "text", "Output format; text for human-readable (default), or json for machine-readable.")
 }
