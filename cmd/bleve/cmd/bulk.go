@@ -30,7 +30,8 @@ var batchSize int
 var bulkCmd = &cobra.Command{
 	Use:   "bulk [index path] [data paths ...]",
 	Short: "bulk loads from newline delimited JSON files",
-	Long:  `The bulk command will perform batch loading of documents in one or more newline delimited JSON files.`,
+	Long: `The bulk command will perform batch loading of documents in one or more newline delimited JSON files.
+Use dash (-) as file name to read from standard input.`,
 	Annotations: map[string]string{
 		canMutateBleveIndex: "true",
 	},
@@ -42,11 +43,21 @@ var bulkCmd = &cobra.Command{
 		i := 0
 		batch := idx.NewBatch()
 
-		for _, file := range args[1:] {
+		for _, filename := range args[1:] {
+			var (
+				close = true
+				file  *os.File
+				err   error
+			)
 
-			file, err := os.Open(file)
-			if err != nil {
-				return err
+			if filename == "-" {
+				file = os.Stdin
+				close = false
+			} else {
+				file, err = os.Open(filename)
+				if err != nil {
+					return err
+				}
 			}
 
 			fmt.Printf("Indexing: %s\n", file.Name())
@@ -89,9 +100,11 @@ var bulkCmd = &cobra.Command{
 				return err
 			}
 
-			err = file.Close()
-			if err != nil {
-				return err
+			if close {
+				err = file.Close()
+				if err != nil {
+					return err
+				}
 			}
 
 		}
